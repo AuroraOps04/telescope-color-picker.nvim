@@ -14,10 +14,28 @@ M.colors = function(opts)
         vim.cmd(cmd)
         local init_cmd = 'vim.cmd("' .. cmd .. '")'
         local init_file = vim.fn.expand(vim.fn.stdpath('config') .. "/init.lua")
-        vim.fn.jobstart("if [[ $(cat " ..
+
+        local sh_command = "if [[ $(cat " ..
             init_file ..
             " | grep -e 'vim.*cmd.*colorscheme') ]]; then awk '!/colorscheme/' " ..
-            init_file .. " > temp && mv temp " .. init_file .. "; fi && echo '" .. init_cmd .. "' >> " .. init_file)
+            init_file .. " > temp && mv temp " .. init_file .. "; fi && echo '" .. init_cmd .. "' >> " .. init_file
+
+        local ps_command = [[
+            $initFile = "]] .. init_file .. [["
+            if (Select-String -Path $initFile -Pattern 'vim.*cmd.*colorscheme') {
+                (Get-Content $initFile | Where-Object { $_ -notmatch 'colorscheme' }) | Set-Content $initFile
+            }
+            Add-Content -Path $initFile -Value "]] .. init_cmd .. [["
+        ]] 
+
+        local os_name = vim.loop.os_uname().sysname
+
+        if os_name == "Windows_NT" then
+          vim.fn.jobstart("powershell -Command \"" .. ps_command .."\"")
+        else
+          vim.fn.jobstart("sh -c \"" .. sh_command .. "\"")
+        end
+
         actions.close(bufnr)
     end
 
